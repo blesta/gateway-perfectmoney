@@ -18,7 +18,7 @@ class Perfectmoney extends NonmerchantGateway
     /**
      * @var string The version of this gateway
      */
-    private static $version = '1.0.0';
+    private static $version = '1.1.0';
 
     /**
      * @var string The authors of this gateway
@@ -229,6 +229,7 @@ class Perfectmoney extends NonmerchantGateway
 
         // An array of key/value hidden fields to set for the payment form
         $fields = [
+            'PAYMENT_ID' => uniqid(),
             'PAYEE_ACCOUNT' => $this->ifSet($this->meta['payee_account']),
             'PAYEE_NAME' => $this->ifSet($company->name),
             'PAYMENT_AMOUNT' => $amount,
@@ -241,14 +242,17 @@ class Perfectmoney extends NonmerchantGateway
             'PAYMENT_URL_METHOD' => 'POST',
             'NOPAYMENT_URL' => $this->ifSet($options['return_url']),
             'NOPAYMENT_URL_METHOD' => 'POST',
-            'BAGGAGE_FIELDS' => 'custom',
+            'BAGGAGE_FIELDS' => 'INVOICES',
             'PAYMENT_METHOD' => 'Pay Now!'
         ];
 
         // Set all invoices to pay
         if (isset($invoice_amounts) && is_array($invoice_amounts)) {
-            $fields['custom'] = $this->serializeInvoices($invoice_amounts);
+            $fields['INVOICES'] = $this->serializeInvoices($invoice_amounts);
         }
+
+        // Log input
+        $this->log($this->ifSet($_SERVER['REQUEST_URI']), serialize($fields), 'input', true);
 
         return $this->buildForm($post_to, $fields);
     }
@@ -301,10 +305,10 @@ class Perfectmoney extends NonmerchantGateway
             . $this->ifSet($post['PAYMENT_UNITS']) . ':'
             . $this->ifSet($post['PAYMENT_BATCH_NUM']) . ':'
             . $this->ifSet($post['PAYER_ACCOUNT']) . ':'
-            . $this->ifSet($this->meta['passphrase']) . ':'
+            . strtoupper(md5($this->meta['passphrase'])) . ':'
             . $this->ifSet($post['TIMESTAMPGMT']);
 
-        $v2_hash = md5($signature);
+        $v2_hash = strtoupper(md5($signature));
 
         // Ensure payment is verified, and validate that the business is valid
         // and matches that configured for this gateway, to prevent payments
@@ -312,7 +316,7 @@ class Perfectmoney extends NonmerchantGateway
         $account_id = strtolower($this->ifSet($this->meta['payee_account']));
 
         if (strtolower($this->ifSet($post['PAYEE_ACCOUNT'])) != $account_id
-            || strtolower($this->ifSet($post['V2_HASH'])) != $v2_hash
+            || $this->ifSet($post['V2_HASH']) != $v2_hash
         ) {
             $this->Input->setErrors($this->getCommonError('invalid'));
 
@@ -323,20 +327,23 @@ class Perfectmoney extends NonmerchantGateway
         }
 
         // Capture the IPN status, or reject it if invalid
-        $status = 'error';
-        if ($v2_hash == strtolower($this->ifSet($post['V2_HASH']))) {
+        $status = 'declined';
+        if ($v2_hash == $this->ifSet($post['V2_HASH'])) {
             $status = 'approved';
+
+            // Log response
+            $this->log($this->ifSet($_SERVER['REQUEST_URI']), serialize($post), 'output', true);
         }
+
+        $client_id = $this->ifSet($get['client_id']);
 
         return [
             'client_id' => $client_id,
             'amount' => $this->ifSet($post['PAYMENT_AMOUNT']),
             'currency' => $this->ifSet($post['PAYMENT_UNITS']),
             'status' => $status,
-            'reference_id' => null,
             'transaction_id' => $this->ifSet($post['PAYMENT_BATCH_NUM']),
-            'parent_transaction_id' => $this->ifSet($post['PAYMENT_ID']),
-            'invoices' => $this->unserializeInvoices($this->ifSet($post['custom']))
+            'invoices' => $this->unserializeInvoices($this->ifSet($post['INVOICES']))
         ];
     }
 
@@ -365,7 +372,7 @@ class Perfectmoney extends NonmerchantGateway
             'client_id' => $client_id,
             'amount' => $this->ifSet($post['PAYMENT_AMOUNT']),
             'currency' => $this->ifSet($post['PAYMENT_UNITS']),
-            'invoices' => $this->unserializeInvoices($this->ifSet($post['custom'])),
+            'invoices' => $this->unserializeInvoices($this->ifSet($post['INVOICES'])),
             'status' => 'approved', // we wouldn't be here if it weren't, right?
             'transaction_id' => $this->ifSet($post['PAYMENT_BATCH_NUM'])
         ];
