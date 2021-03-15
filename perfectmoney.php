@@ -18,7 +18,7 @@ class Perfectmoney extends NonmerchantGateway
     /**
      * @var string The version of this gateway
      */
-    private static $version = '1.0.1';
+    private static $version = '1.1.0';
 
     /**
      * @var string The authors of this gateway
@@ -230,17 +230,17 @@ class Perfectmoney extends NonmerchantGateway
         // An array of key/value hidden fields to set for the payment form
         $fields = [
             'PAYMENT_ID' => uniqid(),
-            'PAYEE_ACCOUNT' => $this->ifSet($this->meta['payee_account']),
-            'PAYEE_NAME' => $this->ifSet($company->name),
+            'PAYEE_ACCOUNT' => (isset($this->meta['payee_account']) ? $this->meta['payee_account'] : null),
+            'PAYEE_NAME' => (isset($company->name) ? $company->name : null),
             'PAYMENT_AMOUNT' => $amount,
             'PAYMENT_UNITS' => $this->currency,
             'STATUS_URL' => Configure::get('Blesta.gw_callback_url')
                 . Configure::get('Blesta.company_id')
                 . '/perfectmoney/?client_id='
-                . $this->ifSet($contact_info['client_id']),
-            'PAYMENT_URL' => $this->ifSet($options['return_url']),
+                . (isset($contact_info['client_id']) ? $contact_info['client_id'] : null),
+            'PAYMENT_URL' => (isset($options['return_url']) ? $options['return_url'] : null),
             'PAYMENT_URL_METHOD' => 'POST',
-            'NOPAYMENT_URL' => $this->ifSet($options['return_url']),
+            'NOPAYMENT_URL' => (isset($options['return_url']) ? $options['return_url'] : null),
             'NOPAYMENT_URL_METHOD' => 'POST',
             'BAGGAGE_FIELDS' => 'INVOICES',
             'PAYMENT_METHOD' => 'Pay Now!'
@@ -252,7 +252,7 @@ class Perfectmoney extends NonmerchantGateway
         }
 
         // Log input
-        $this->log($this->ifSet($_SERVER['REQUEST_URI']), serialize($fields), 'input', true);
+        $this->log((isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null), serialize($fields), 'input', true);
 
         return $this->buildForm($post_to, $fields);
     }
@@ -299,51 +299,51 @@ class Perfectmoney extends NonmerchantGateway
     public function validate(array $get, array $post)
     {
         // Calculate MD5 hash
-        $signature = $this->ifSet($post['PAYMENT_ID']) . ':'
-            . $this->ifSet($post['PAYEE_ACCOUNT']) . ':'
-            . $this->ifSet($post['PAYMENT_AMOUNT']) . ':'
-            . $this->ifSet($post['PAYMENT_UNITS']) . ':'
-            . $this->ifSet($post['PAYMENT_BATCH_NUM']) . ':'
-            . $this->ifSet($post['PAYER_ACCOUNT']) . ':'
+        $signature = (isset($post['PAYMENT_ID']) ? $post['PAYMENT_ID'] : null) . ':'
+            . (isset($post['PAYEE_ACCOUNT']) ? $post['PAYEE_ACCOUNT'] : null) . ':'
+            . (isset($post['PAYMENT_AMOUNT']) ? $post['PAYMENT_AMOUNT'] : null) . ':'
+            . (isset($post['PAYMENT_UNITS']) ? $post['PAYMENT_UNITS'] : null) . ':'
+            . (isset($post['PAYMENT_BATCH_NUM']) ? $post['PAYMENT_BATCH_NUM'] : null) . ':'
+            . (isset($post['PAYER_ACCOUNT']) ? $post['PAYER_ACCOUNT'] : null) . ':'
             . strtoupper(md5($this->meta['passphrase'])) . ':'
-            . $this->ifSet($post['TIMESTAMPGMT']);
+            . (isset($post['TIMESTAMPGMT']) ? $post['TIMESTAMPGMT'] : null);
 
         $v2_hash = strtoupper(md5($signature));
 
         // Ensure payment is verified, and validate that the business is valid
         // and matches that configured for this gateway, to prevent payments
         // being recognized that were delivered to a different account
-        $account_id = strtolower($this->ifSet($this->meta['payee_account']));
+        $account_id = strtolower((isset($this->meta['payee_account']) ? $this->meta['payee_account'] : null));
 
-        if (strtolower($this->ifSet($post['PAYEE_ACCOUNT'])) != $account_id
-            || $this->ifSet($post['V2_HASH']) != $v2_hash
+        if (strtolower((isset($post['PAYEE_ACCOUNT']) ? $post['PAYEE_ACCOUNT'] : null)) != $account_id
+            || (isset($post['V2_HASH']) ? $post['V2_HASH'] : null) != $v2_hash
         ) {
             $this->Input->setErrors($this->getCommonError('invalid'));
 
             // Log error response
-            $this->log($this->ifSet($_SERVER['REQUEST_URI']), serialize($post), 'output', false);
+            $this->log((isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null), serialize($post), 'output', false);
 
             return;
         }
 
         // Capture the IPN status, or reject it if invalid
         $status = 'declined';
-        if ($v2_hash == $this->ifSet($post['V2_HASH'])) {
+        if ($v2_hash == (isset($post['V2_HASH']) ? $post['V2_HASH'] : null)) {
             $status = 'approved';
 
             // Log response
-            $this->log($this->ifSet($_SERVER['REQUEST_URI']), serialize($post), 'output', true);
+            $this->log((isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null), serialize($post), 'output', true);
         }
 
-        $client_id = $this->ifSet($get['client_id']);
+        $client_id = (isset($get['client_id']) ? $get['client_id'] : null);
 
         return [
             'client_id' => $client_id,
-            'amount' => $this->ifSet($post['PAYMENT_AMOUNT']),
-            'currency' => $this->ifSet($post['PAYMENT_UNITS']),
+            'amount' => (isset($post['PAYMENT_AMOUNT']) ? $post['PAYMENT_AMOUNT'] : null),
+            'currency' => (isset($post['PAYMENT_UNITS']) ? $post['PAYMENT_UNITS'] : null),
             'status' => $status,
-            'transaction_id' => $this->ifSet($post['PAYMENT_BATCH_NUM']),
-            'invoices' => $this->unserializeInvoices($this->ifSet($post['INVOICES']))
+            'transaction_id' => (isset($post['PAYMENT_BATCH_NUM']) ? $post['PAYMENT_BATCH_NUM'] : null),
+            'invoices' => $this->unserializeInvoices((isset($post['INVOICES']) ? $post['INVOICES'] : null))
         ];
     }
 
@@ -366,15 +366,15 @@ class Perfectmoney extends NonmerchantGateway
      */
     public function success(array $get, array $post)
     {
-        $client_id = $this->ifSet($get['client_id']);
+        $client_id = (isset($get['client_id']) ? $get['client_id'] : null);
 
         return [
             'client_id' => $client_id,
-            'amount' => $this->ifSet($post['PAYMENT_AMOUNT']),
-            'currency' => $this->ifSet($post['PAYMENT_UNITS']),
-            'invoices' => $this->unserializeInvoices($this->ifSet($post['INVOICES'])),
+            'amount' => (isset($post['PAYMENT_AMOUNT']) ? $post['PAYMENT_AMOUNT'] : null),
+            'currency' => (isset($post['PAYMENT_UNITS']) ? $post['PAYMENT_UNITS'] : null),
+            'invoices' => $this->unserializeInvoices((isset($post['INVOICES']) ? $post['INVOICES'] : null)),
             'status' => 'approved', // we wouldn't be here if it weren't, right?
-            'transaction_id' => $this->ifSet($post['PAYMENT_BATCH_NUM'])
+            'transaction_id' => (isset($post['PAYMENT_BATCH_NUM']) ? $post['PAYMENT_BATCH_NUM'] : null)
         ];
     }
 
