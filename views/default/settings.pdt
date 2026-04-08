@@ -1,15 +1,17 @@
-	<ul>
-		<li>
-			<?php
-                $this->Form->label($this->_('Perfectmoney.payee_account', true), 'payee_account');
-                $this->Form->fieldText('payee_account', (isset($meta['payee_account']) ? $meta['payee_account'] : null), ['id' => 'payee_account']);
-            ?>
-        </li>
-        <li>
-            <?php
-                $this->Form->label($this->_('Perfectmoney.passphrase', true), 'passphrase');
-                $this->Form->fieldText('passphrase', (isset($meta['passphrase']) ? $meta['passphrase'] : null), ['id' => 'passphrase']);
-            ?>
-            <span class="tooltip"><?php $this->_('AppController.tooltip.text'); ?><div><?php $this->_('Perfectmoney.passphrase_note'); ?></div></span>
-        </li>
-    </ul>
+
+<div class="mb-3">
+    <?php
+    $this->Form->label($this->_('Perfectmoney.payee_account', true), 'payee_account', ['class' => 'form-label']);
+    $this->Form->fieldText('payee_account', (isset($meta['payee_account']) ? $meta['payee_account'] : null), ['id' => 'payee_account', 'class' => 'form-control']);
+    ?>
+</div>
+<div class="mb-3">
+    <label for="passphrase" class="form-label">
+        <?php $this->_('Perfectmoney.passphrase'); ?>
+        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+           title="<?php echo $this->Html->safe($this->_('Perfectmoney.passphrase_note', true)); ?>"></i>
+    </label>
+    <?php
+    $this->Form->fieldText('passphrase', (isset($meta['passphrase']) ? $meta['passphrase'] : null), ['id' => 'passphrase', 'class' => 'form-control']);
+    ?>
+</div>
