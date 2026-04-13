@@ -18,7 +18,7 @@ class Perfectmoney extends NonmerchantGateway
     /**
      * @var string The version of this gateway
      */
-    private static $version = '1.1.0';
+    private static $version = '2.0.0';
 
     /**
      * @var string The authors of this gateway
